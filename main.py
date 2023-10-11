@@ -2,9 +2,30 @@ import pandas as pd
 import glob
 import xml.etree.ElementTree as ET
 from datetime import datetime
+import configparser
+import psycopg2
+from sqlalchemy import create_engine
 
 log_file = "log_file.txt"
 target_file = "transformed_data.csv"
+table_name = 'data'
+
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+# Connecting to database
+password = config['secret']['PASSWORD']
+con = psycopg2.connect(database='etl_project',
+                       user='postgres',
+                       password=password,
+                       host='127.0.0.1',
+                       port='5432')
+
+# Creating Engine
+engine = create_engine(f'postgresql+psycopg2://postgres:{password}@localhost:5432/etl_project')
+
+# Creating cursor object
+cursor = con.cursor()
 
 
 # Extracting
@@ -36,15 +57,15 @@ def extract():
     extracted_data = pd.DataFrame(columns=['name', 'height', 'weight'])
 
     # process all csv files
-    for csvfile in glob.glob("C:/Apps/Projects/ETL_Project/*.csv"):
+    for csvfile in glob.glob("C:/Apps/ETL_Project/source/*.csv"):
         extracted_data = pd.concat([extracted_data, pd.DataFrame(extract_from_csv(csvfile))], ignore_index=True)
 
     # process all json files
-    for jsonfile in glob.glob("C:/Apps/Projects/ETL_Project/*.json"):
+    for jsonfile in glob.glob("C:/Apps/ETL_Project/source/*.json"):
         extracted_data = pd.concat([extracted_data, pd.DataFrame(extract_from_json(jsonfile))], ignore_index=True)
 
     # process all xml files
-    for xmlfile in glob.glob("C:/Apps/Projects/ETL_Project/*.xml"):
+    for xmlfile in glob.glob("C:/Apps/ETL_Project/source/*.xml"):
         extracted_data = pd.concat([extracted_data, pd.DataFrame(extract_from_xml(xmlfile))], ignore_index=True)
 
     return extracted_data
@@ -64,8 +85,17 @@ def transform(data):
 
 
 # Loading
-def load_data(target_file, transformed_data):
+def load_data_to_csv(target_file, transformed_data):
     transformed_data.to_csv(target_file)
+
+
+def load_data_to_db(engine, transformed_data):
+    transformed_data.to_sql(table_name, engine, if_exists='replace', index=False)
+
+
+# Querying
+def query(statement, con):
+    return pd.read_sql(statement, con)
 
 
 # Logging
@@ -90,19 +120,24 @@ log_progress("Extract phase Ended")
 # Log the beginning of the Transformation process
 log_progress("Transform phase Started")
 transformed_data = transform(extracted_data)
-print("Transformed Data")
-print(transformed_data)
 
 # Log the completion of the Transformation process
 log_progress("Transform phase Ended")
 
 # Log the beginning of the Loading process
 log_progress("Load phase Started")
-load_data(target_file, transformed_data)
+load_data_to_csv(target_file, transformed_data)
+load_data_to_db(engine, transformed_data)
 
 # Log the completion of the Loading process
 log_progress("Load phase Ended")
 
+# Example query
+log_progress("Database queried")
+statement = f"SELECT * FROM {table_name}"
+print(query(statement, con))
+log_progress("Database Querying Ended")
+con.close()
+
 # Log the completion of the ETL process
 log_progress("ETL Job Ended")
-
