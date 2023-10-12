@@ -12,20 +12,21 @@ table_name = 'data'
 
 config = configparser.ConfigParser()
 config.read('config.ini')
-
-# Connecting to database
 password = config['secret']['PASSWORD']
-con = psycopg2.connect(database='etl_project',
-                       user='postgres',
-                       password=password,
-                       host='127.0.0.1',
-                       port='5432')
 
-# Creating Engine
-engine = create_engine(f'postgresql+psycopg2://postgres:{password}@localhost:5432/etl_project')
 
-# Creating cursor object
-cursor = con.cursor()
+def connect(password):
+    # Connecting to database
+    con = psycopg2.connect(database='etl_project',
+                           user='postgres',
+                           password=password,
+                           host='127.0.0.1',
+                           port='5432')
+    
+    # Creating Engine
+    engine = create_engine(f'postgresql+psycopg2://postgres:{password}@localhost:5432/etl_project')
+  
+    return con, engine
 
 
 # Extracting
@@ -127,6 +128,7 @@ log_progress("Transform phase Ended")
 # Log the beginning of the Loading process
 log_progress("Load phase Started")
 load_data_to_csv(target_file, transformed_data)
+con, engine = connect(password)
 load_data_to_db(engine, transformed_data)
 
 # Log the completion of the Loading process
