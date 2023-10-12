@@ -15,7 +15,7 @@ config.read('config.ini')
 password = config['secret']['PASSWORD']
 
 
-def connect(password):
+def connect_to_db(password):
     # Connecting to database
     con = psycopg2.connect(database='etl_project',
                            user='postgres',
@@ -128,7 +128,7 @@ log_progress("Transform phase Ended")
 # Log the beginning of the Loading process
 log_progress("Load phase Started")
 load_data_to_csv(target_file, transformed_data)
-con, engine = connect(password)
+con, engine = connect_to_db(password)
 load_data_to_db(engine, transformed_data)
 
 # Log the completion of the Loading process
